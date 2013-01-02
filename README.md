@@ -48,7 +48,13 @@ is that the contents are unindexable.
 
 ## Simple Get
 
-- All GDSDocument objects have a top level key. Normal ndb.get is used to get objects by their key.
+All GDSDocument objects have a top level key. Normal ndb.get is used to get objects by their key.
+
+## Querying
+
+Normal ndb querying can be used on the GDSDocument entities. It is recommended that different types of data (eg Person, Address) 
+are denoted using a top level attribute "type". This is only a recommended convention however, and is in no way
+required.
 
 ## Denormalized Object Linking
 
@@ -183,6 +189,4 @@ And if the object is recreated in the future, then that linked data will be rein
 The current version does not support this, but in a future version we may support the ability to change the denormalized information,
 and have it flow back to the original object. eg: you could change addr1 in address inside person, and it would 
 fix the source address. Note this wont work when transforms are being used (you would need inverse transforms).
-
-## Querying
 
