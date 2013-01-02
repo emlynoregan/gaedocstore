@@ -2,3 +2,187 @@ gaedocstore
 ===========
 
 gaedocstore is a lightweight document database implementation that sits on top of  ndb in google appengine.
+
+## Introduction
+
+If you are using appengine for your platform, but you need to store arbitrary (data defined) entities, 
+rather than pre-defined schema based entities, then gaedocstore can help.
+
+gaedocstore takes arbitrary JSON object structures, and stores them to a single ndb datastore object called GDSDocument.
+
+## Simple Put
+
+When JSON is stored to the document store, it is converted to a GDSDocument object (an Expando model subclass) as follows:
+
+- Say we are storing an object called Input.
+
+- Input must be a dictionary.
+
+- Input must include a key at minimum. If no key is provided, the put is rejected.
+
+    - If the key already exists for a GDSDocument, then that object is updated using the new JSON. 
+
+    - With an update, you can indicate "Replace" or "Update" (default is Replace). 
+Replace entirely replaces the existing entity. "Update"
+merges the entity with the existing stored entity, preferentially including information from the new JSON.
+
+    - If the key doesn't already exist, then a new GDSDocument is created for that key.
+
+
+- The top level object is mapped to the GDSDocument.
+    - Simple values become simple properties
+    
+    - Arrays become repeated properties
+    
+    - Dictionaries become a StructuredProperty
+
+
+- The GDSDocument property structure is built recursively to match the JSON object structure.
+
+- There is an ndb constraint that if one StructuredProperty is inside another StructuredProperty, 
+then only one of them may be repeated. To work with this contraint, any repeated StructuredProperty that would appear
+under another StructuredProperty is made into a LocalStructuredProperty instead. Further, any StructuredProperty that
+would appear under a LocalStructuredProperty also becomes a LocalStructuredProperty. The penalty for using LocalStructuredProperty
+is that the contents are unindexable.
+
+
+## Simple Get
+
+- All GDSDocument objects have a top level key. Normal ndb.get is used to get objects by their key.
+
+## Denormalized Object Linking
+
+You can directly support denormalized object linking.
+
+Say you have two entities, an Address:
+    {
+        "key": "1234567",
+        "type": "Address",
+        "addr1": "1 thing st",
+        "city": "stuffville",
+        "zipcode": 54321
+    }
+
+and a Person:
+    {
+        "key": "897654",
+        "type": "Person",
+        "name": "Fred"
+        "address": // put the address with key "1234567" here
+    }
+
+You'd like to store the Person so the correct linked address not is there; not just the key, but the values (addr1, city, zipcode).
+
+If you store the Person as:
+
+    {
+        "key": "897654",
+        "type": "Person",
+        "name": "Fred",
+        "address": {"key": "1234567"}
+    }
+
+then this will automatically be expanded to 
+
+    {
+        "key": "897654",
+        "type": "Person",
+        "name": "Fred",
+        "address": 
+        {
+            "key": "1234567",
+            "type": "Address",
+            "addr1": "1 thing st",
+            "city": "stuffville",
+            "zipcode": 54321
+        }
+    }
+
+Furthermore, gaedocstore will update these values if you change address. So if address changed to:
+
+    {
+        "key": "1234567",
+        "type": "Address",
+        "addr1": "2 thing st",
+        "city": "somewheretown",
+        "zipcode": 12345
+    }
+
+then the person will update to
+
+    {
+        "key": "897654",
+        "type": "Person",
+        "name": "Fred",
+        "address": 
+        {
+            "key": "1234567",
+            "addr1": "2 thing st",
+            "city": "somewheretown",
+            "zipcode": 12345
+        }
+    }
+
+Denormalized Object Linking also supports [pybOTL transform templates] (https://github.com/emlynoregan/pybOTL). gaedocstore
+can take a list of "name", "transform" pairs. When a key appears like 
+    {
+        ...
+        "something": { key: XXX },
+        ...
+    }
+    
+then gaedocstore loads the key referenced. If found, it looks in its list of transform names. If it finds one, it applies
+that transform to the loaded object, and puts the output into the stored GDSDocument. If no transform was found, then the 
+entire object is put into the stored GDSDocument as described above.
+
+eg:
+
+Say we have the transform "address" as follows:
+
+    {
+        "fulladdr": "{{addr1}}, {{city}} {{zipcode}}"
+    }
+    
+Then when Person above is stored, it'll have its address placed inline as follows:
+
+    {
+        "key": "897654",
+        "type": "Person",
+        "name": "Fred",
+        "address": 
+        {
+            "key": "1234567",
+            "fulladdr": "2 thing st, somewheretown 12345"
+        }
+    }
+
+An analogous process happens whenever the Address object is updated.
+
+If the template itself is updated, then all objects affected by that template are also updated.
+
+### deletion
+
+If an object is deleted, then all denormalized links will be updated with a special key "link_deleted": True. For example, say 
+we delete address "1234567" . Then Person will become:
+
+    {
+        "key": "897654",
+        "type": "Person",
+        "name": "Fred",
+        "address": 
+        {
+            "key": "1234567",
+            "link_deleted": True
+        }
+    }
+
+And if the object is recreated in the future, then that linked data will be reinstated as expected.
+
+### updating denormalized linked data back to parents
+
+The current version does not support this, but in a future version we may support the ability to change the denormalized information,
+and have it flow back to the original object. eg: you could change addr1 in address inside person, and it would 
+fix the source address. Note this wont work when transforms are being used (you would need inverse transforms).
+
+## Querying
+
