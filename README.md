@@ -34,11 +34,14 @@ merges the entity with the existing stored entity, preferentially including info
 - The GDSDocument property structure is built recursively to match the JSON object structure.
     - Simple values become simple property values
     
-    - Arrays become JSON in a GDSJson object, which just hold "json", a JsonProperty (nothing inside is indexed, or searchable)
+    - Arrays of simple values become a repeated GenericProperty. ie: you can search on the contents. 
+    
+    - Arrays which include dicts or arrays become JSON in a GDSJson object, which just hold "json", a JsonProperty (nothing inside is indexed, or searchable)
     
     - Dictionaries become another GDSDocument
 
-    - So nested dictionary fields are fully indexed and searchable, but anything inside an array is not.
+    - So nested dictionary fields are fully indexed and searchable, including where their values are lists of simple types,
+but anything inside a complex array is not.
 
 ## Simple Get
 
@@ -104,7 +107,7 @@ and a Person:
         "address": // put the address with key "1234567" here
     }
 
-You'd like to store the Person so the correct linked address not is there; not just the key, but the values (addr1, city, zipcode).
+You'd like to store the Person so the correct linked address is there; not just the key, but the values (type, addr1, city, zipcode).
 
 If you store the Person as:
 
@@ -131,7 +134,7 @@ then this will automatically be expanded to
         }
     }
 
-Furthermore, gaedocstore will update these values if you change address. So if address changed to:
+Furthermore, gaedocstore will update these values if you change address. So if address changes to:
 
     {
         "key": "1234567",
@@ -141,7 +144,7 @@ Furthermore, gaedocstore will update these values if you change address. So if a
         "zipcode": 12345
     }
 
-then the person will update to
+then the person will automatically update to
 
     {
         "key": "897654",
@@ -173,7 +176,7 @@ eg:
 Say we have the transform "address" as follows:
 
     {
-        "fulladdr": "{{addr1}}, {{city}} {{zipcode}}"
+        "fulladdr": "{{.addr1}}, {{.city}} {{.zipcode}}"
     }
     
 Then when Person above is stored, it'll have its address placed inline as follows:
@@ -189,13 +192,13 @@ Then when Person above is stored, it'll have its address placed inline as follow
         }
     }
 
-An analogous process happens whenever the Address object is updated.
+An analogous process happens to embedded addresses whenever the Address object is updated.
 
-If the template itself is updated, then all objects affected by that template are also updated.
+Desired feature (not yet implemented): If the template itself is updated, then all objects affected by that template are also updated.
 
 ### deletion
 
-If an object is deleted, then all denormalized links will be updated with a special key "link_deleted": True. For example, say 
+If an object is deleted, then all denormalized links will be updated with a special key "link_missing": True. For example, say 
 we delete address "1234567" . Then Person will become:
 
     {
@@ -210,6 +213,8 @@ we delete address "1234567" . Then Person will become:
     }
 
 And if the object is recreated in the future, then that linked data will be reinstated as expected.
+
+Similarly, if an object is saved with a link, but the linked object can't be found, "link_missing": True will be included as above.
 
 ### updating denormalized linked data back to parents
 
