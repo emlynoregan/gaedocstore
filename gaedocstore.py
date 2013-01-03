@@ -33,9 +33,15 @@ class GDSDocument (Expando):
         # here, we've done the update. Now, fix all objects that have denormalized links to this object.
         lgdsDocumentKey = future.get_result()
         if lgdsDocumentKey:
-            lgdsDocument = lgdsDocumentKey.get()
-            if lgdsDocument:
-                FixAllLinkingGDSDocuments(lgdsDocument)
+#            lgdsDocument = lgdsDocumentKey.get()
+#            if lgdsDocument:
+            FixAllLinkingGDSDocuments(lgdsDocumentKey)
+
+    @classmethod
+    def _post_delete_hook(cls, key, future):
+        # here, we've done the delete. Now, fix all objects that have denormalized links to this object.
+        if key:
+            FixAllLinkingGDSDocuments(key)
 
     def to_dict(self, *args, **kwargs):
         retval = super(GDSDocument, self).to_dict(*args, **kwargs)
@@ -63,9 +69,9 @@ class GDSJson (Expando):
         retval = retval["json"]
         return retval
 
-def FixAllLinkingGDSDocuments(aGDSDocument):
-    if aGDSDocument and aGDSDocument.key:
-        lkeyid = aGDSDocument.key.id()
+def FixAllLinkingGDSDocuments(aGDSDocumentKey):
+    if aGDSDocumentKey:
+        lkeyid = aGDSDocumentKey.id()
         if lkeyid:
             lgp = GenericProperty()
             lgp._name = LINKS_KEY

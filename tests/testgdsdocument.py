@@ -261,4 +261,78 @@ class testGDSDocument(BaseTestCase):
         lqueriedDocument = GDSDocument.query(lgp == "111").get() 
         self.assertIsNotNone(lqueriedDocument, "could not find document with query")
         
+    def test7(self):
+        ldictPerson = {
+            "key": "897654",
+            "type": "Person",
+            "name": "Fred",
+            "address": {"key": "1234567"}
+        }
+        
+        ldictAddress = {
+            "key": "1234567", 
+            "type": "Address", 
+            "addr1": "1 thing st", 
+            "city": "stuffville", 
+            "zipcode": 54321,
+            "tags": ['some', 'tags']
+        }
+        
+        ldictPersonWithoutAddress = {
+            "key": "897654",
+            "type": "Person",
+            "name": "Fred",
+            "address": 
+            {
+                "key": "1234567",
+                "link_missing": True
+            }
+        }
+
+        ldictPersonWithAddress = {
+            "key": "897654",
+            "type": "Person",
+            "name": "Fred",
+            "address": 
+            {
+                "key": "1234567",
+                "type": "Address",
+                "addr1": "1 thing st",
+                "city": "stuffville",
+                "zipcode": 54321,
+                "tags": ['some', 'tags']
+            }
+        }
+        
+        # first store the person
+        lperson = gaedocstore.GDSDocument.ConstructFromDict(ldictPerson)
+        self.assertIsNotNone(lperson)
+        lperson.put()
+        
+        # lperson should now be populated to match ldictPersonWithoutAddress
+        lperson = lperson.key.get()
+        lpersonDict2 = lperson.to_dict()
+        self.assertIsNotNone(lpersonDict2)
+        self.assertDictEqual(lpersonDict2, ldictPersonWithoutAddress, "person without address incorrect, first time")
+
+        # now store the address
+        laddress = gaedocstore.GDSDocument.ConstructFromDict(ldictAddress)
+        self.assertIsNotNone(laddress)
+        laddress.put()
+        
+        # lperson should now be populated to match ldictPersonWithAddress
+        lperson = lperson.key.get()
+        lpersonDict2 = lperson.to_dict()
+        self.assertIsNotNone(lpersonDict2)
+        self.assertDictEqual(lpersonDict2, ldictPersonWithAddress, "person with address incorrect")
+
+        # delete the address
+        laddress.key.delete()
+
+        # lperson should now be populated to match ldictPersonWithoutAddress
+        lperson = lperson.key.get()
+        lpersonDict2 = lperson.to_dict()
+        self.assertIsNotNone(lpersonDict2)
+        self.assertDictEqual(lpersonDict2, ldictPersonWithoutAddress, "person without address incorrect, second time")
+
         

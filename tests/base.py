@@ -19,6 +19,9 @@ class BaseTestCase(unittest.TestCase):
         
         self.constructModel()
         
+    def tearDown(self):
+        self.testbed.deactivate()
+    
     def constructModel(self):
 #        x = NdbThing(thingo = "fred")
 #        x.put()
