@@ -1,63 +1,170 @@
-from google.appengine.ext.ndb import Expando, JsonProperty
+from google.appengine.ext.ndb import Expando, JsonProperty, Key, GenericProperty
+from google.appengine.ext.ndb.model import put_multi
+
+LINKS_KEY = "denormalizedobjectlinks__"
 
 class GDSDocument (Expando):
-    pass
+    def Update(self):
+        aDict = self.to_dict()
+        aUpdatedDict = UpdateDenormalizedObjectLinking(aDict)
+        retval = DictToGDSDocument(aUpdatedDict)
+        return retval
+    
+    @classmethod
+    def ConstructFromDict(cls, aDict, aReplace=True):
+        aDenormalizedDict = UpdateDenormalizedObjectLinking(aDict)
+        
+        
+        if aReplace:
+            retval = DictToGDSDocument(aDenormalizedDict)
+        else:
+            lgdsDocument = None
+            if aDict and IsDict(aDict) and "key" in aDict:
+                lkeyid = aDict["key"]
+                lkey = Key(GDSDocument, lkeyid)
+                lgdsDocument = lkey.get()
+
+            retval = DictToGDSDocument(aDenormalizedDict, lgdsDocument)
+        
+        return retval
+
+    @classmethod
+    def _post_put_hook(cls, future):
+        # here, we've done the update. Now, fix all objects that have denormalized links to this object.
+        lgdsDocumentKey = future.get_result()
+        if lgdsDocumentKey:
+            lgdsDocument = lgdsDocumentKey.get()
+            if lgdsDocument:
+                FixAllLinkingGDSDocuments(lgdsDocument)
+
+    def to_dict(self, *args, **kwargs):
+        retval = super(GDSDocument, self).to_dict(*args, **kwargs)
+        # add in the key, we want it. But only if there is one; nested objects may not have one.
+        if self.key:
+            retval["key"] = self.key.id()
+
+        if LINKS_KEY in retval:
+            del retval[LINKS_KEY]
+
+        return retval
+
+    def _to_dict(self, *args, **kwargs):
+        retval = super(GDSDocument, self)._to_dict(*args, **kwargs)
+        # add in the key, we want it. But only if there is one; nested objects may not have one.
+        if self.key:
+            retval["key"] = self.key.id()
+        return retval
 
 class GDSJson (Expando):
     json = JsonProperty()
     
-    def _to_dict(self):
-        retval = super(GDSJson, self).to_dict()
+    def _to_dict(self, *args, **kwargs):
+        retval = super(GDSJson, self)._to_dict(*args, **kwargs)
         retval = retval["json"]
         return retval
 
-def DictToGDSDocument(aSource):
-    def _objectToGDSDocument(aSource):
+def FixAllLinkingGDSDocuments(aGDSDocument):
+    if aGDSDocument and aGDSDocument.key:
+        lkeyid = aGDSDocument.key.id()
+        if lkeyid:
+            lgp = GenericProperty()
+            lgp._name = LINKS_KEY
+            ldocuments, lcursor, lmore = GDSDocument.query(lgp == lkeyid).fetch_page(10)
+            while ldocuments:
+                lnewDocuments = []
+                for ldocument in ldocuments:
+                    lnewDocuments.append(ldocument.Update())
+                if lnewDocuments:
+                    put_multi(lnewDocuments)
+                #
+                if lmore:
+                    ldocuments, lcursor, lmore = GDSDocument.query(lgp == lkeyid).fetch_page(10, start_cursor=lcursor)
+                else:
+                    ldocuments = []
+                    
+def DictToGDSDocument(aDict, aBaseGDSDocument = None):
+    def _objectToGDSDocument(aSource, aBaseGDSDocument = None):
         retval = None
         if IsDict(aSource):
-            retval = GDSDocument()
+            if aBaseGDSDocument:
+                retval = aBaseGDSDocument
+            else:
+                retval = GDSDocument()
+                
             for lkey, lvalue in aSource.iteritems():
-                lconvertedValue = _objectToGDSDocument(lvalue)
-                retval.populate(**{lkey: lconvertedValue})
+                if lkey == "key":
+                    retval.key = Key(GDSDocument, lvalue)
+                else:
+                    lchildBaseDocument = None
+                    if aBaseGDSDocument and IsDict(aBaseGDSDocument) and lkey in aBaseGDSDocument:
+                        lchildBaseDocument = aBaseGDSDocument[lkey]
+                    lconvertedValue = _objectToGDSDocument(lvalue, lchildBaseDocument)                    
+                    retval.populate(**{lkey: lconvertedValue})
         elif IsList(aSource):
-            retval = GDSJson()
-            retval.json = aSource
+            if IsListOfSimpleValues(aSource):
+                retval = aSource
+            else:
+                retval = GDSJson()
+                retval.json = aSource
         else:
             retval = aSource
         return retval
     
-    if IsDict(aSource):
-        return _objectToGDSDocument(aSource)
+    if IsDict(aDict):
+        retval = _objectToGDSDocument(aDict, aBaseGDSDocument)
+        return retval
     else:
-        raise Exception("Source must be a Dict")
+        raise Exception("Input must be a Dict")
 
-def GDSDocumentToDict(aGDSDocument):
-    if not isinstance(aGDSDocument, GDSDocument):
-        raise Exception("Input must be a GDSDocument")
-
-    retval = aGDSDocument.to_dict()
+def UpdateDenormalizedObjectLinking(aDict):
+    def _updateDenormalizedObjectLinking(aSource, aLinksList):
+        retval = None
+        if IsDict(aSource):
+            retval = {}
+            for lkey, lvalue in aSource.iteritems():
+                # anywhere where the lvalue is a dict containing a key "key", we need to do denormalized object linking
+                if IsDict(lvalue) and "key" in lvalue:
+                    aTarget = {}
+                    aTarget["key"] = lvalue["key"]
+                    #aTarget.update(lvalue)
+                    
+                    llinkkeyid = lvalue["key"]
+                    
+                    aLinksList.append(llinkkeyid)
+                    
+                    llinkobj = None
+                    if llinkkeyid:
+                        llinkkey = Key(GDSDocument, llinkkeyid)
+                        llinkobj = llinkkey.get()
+                    
+                    if llinkobj:
+                        # we have a linked object. Populate aTarget with values from the linked object.
+                        llinkdict = llinkobj.to_dict()
+                        if "key" in llinkdict:
+                            del llinkdict["key"]
+                        aTarget.update(llinkdict)
+                    else:
+                        aTarget["link_missing"] = True
+                        
+                    retval[lkey] = aTarget
+                else:
+                    retval[lkey] = _updateDenormalizedObjectLinking(lvalue, aLinksList)
+        elif IsList(aSource):
+            retval = []
+            for lvalue in aSource:
+                retval.append(_updateDenormalizedObjectLinking(lvalue, aLinksList))
+        else:
+            retval = aSource
+        return retval
     
-    return retval
-            
-
-#def FixToDict(aInput):
-#    retval = None
-#    
-#    if IsDict(aInput):
-#        retval = {}
-#        for lkey, lvalue in aInput.iteritems():
-#            retval[lkey] = FixToDict(lvalue)
-#    elif IsList(aInput):
-#        retval = []
-#        for litem in aInput:
-#            if hasattr(litem, "to_dict"):
-#                retval.append(FixToDict(litem.to_dict()))
-#            else:
-#                retval.append(litem)
-#    else:
-#        retval = aInput
-#        
-#    return retval
+    if IsDict(aDict):
+        llinksList = []
+        retval = _updateDenormalizedObjectLinking(aDict, llinksList)
+        if llinksList:
+            retval[LINKS_KEY] = llinksList
+        return retval
+    else:
+        raise Exception("Input must be a Dict")
     
 def IsDict(aTransform):
     retval = isinstance(aTransform, dict)
@@ -66,5 +173,16 @@ def IsDict(aTransform):
 
 def IsList(aTransform):
     retval = isinstance(aTransform, list)
+    
+    return retval
+
+def IsListOfSimpleValues(aList):
+    retval = isinstance(aList, list)
+    
+    if retval:
+        for aItem in aList:
+            retval = not IsDict(aItem) and not IsList(aItem)
+            if not retval:
+                break
     
     return retval

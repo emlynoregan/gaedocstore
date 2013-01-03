@@ -64,7 +64,7 @@ class testDictGDSDocumentConversions(BaseTestCase):
         
         self.assertIsNotNone(lgdsDocument, "lgdsDocument should not be None")
         
-        ldict2 = gaedocstore.GDSDocumentToDict(lgdsDocument)
+        ldict2 = lgdsDocument.to_dict()
         
         self.assertIsNotNone(ldict2, "ldict2 should not be None")
 
@@ -82,7 +82,7 @@ class testDictGDSDocumentConversions(BaseTestCase):
         
         self.assertIsNotNone(lgdsDocument)
         
-        ldict2 = gaedocstore.GDSDocumentToDict(lgdsDocument)
+        ldict2 = lgdsDocument.to_dict()
         
         self.assertIsNotNone(ldict2, "ldict2 should not be None")
 
@@ -104,16 +104,25 @@ class testDictGDSDocumentConversions(BaseTestCase):
         self.convertToGDSAndBack(ldict)
         
     def test6(self):
-        ldict = {"fred":"george", "larry":{"gertrude": 47}}
+        # need a key because we're actually saving the object here, it'll come back to us with an unexpected generated key otherwise.
+        ldict = {"key": "thing", "fred":"george", "larry":{"gertrude": 47}}
         
         self.convertToGDSAndQuery(ldict, "fred", "george")
         
     def test7(self):
-        ldict = {"fred":"george", "larry":{"gertrude": 47}}
+        # need a key because we're actually saving the object here, it'll come back to us with an unexpected generated key otherwise.
+        ldict = {"key": "thing", "fred":"george", "larry":{"gertrude": 47}}
         
         self.convertToGDSAndQuery(ldict, "larry.gertrude", 47)        
         
     def test8(self):
-        ldict = {"fred":"george", "gertrude": [1, 3, {"harry": "thing"}], "larry":{"gertrude": 47}}
+        # need a key because we're actually saving the object here, it'll come back to us with an unexpected generated key otherwise.
+        ldict = {"key": "thing", "fred":"george", "gertrude": [1, 3, {"harry": "thing"}], "larry":{"gertrude": 47}}
         
-        self.convertToGDSAndQuery(ldict, "larry.gertrude", 47)                
+        self.convertToGDSAndQuery(ldict, "larry.gertrude", 47)
+        
+    def test9(self):
+        ldict = {"fred":"george", "bill": [1, 2], "harry": []}
+        
+        self.convertToGDSAndBack(ldict)
+                        
