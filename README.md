@@ -205,7 +205,7 @@ we delete address "1234567" . Then Person will become:
         "address": 
         {
             "key": "1234567",
-            "link_deleted": True
+            "link_missing": True
         }
     }
 
