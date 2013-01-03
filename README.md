@@ -43,6 +43,28 @@ merges the entity with the existing stored entity, preferentially including info
     - So nested dictionary fields are fully indexed and searchable, including where their values are lists of simple types,
 but anything inside a complex array is not.
 
+eg:
+        ldictPerson = {
+            "key": "897654",
+            "type": "Person",
+            "name": "Fred",
+            "address": 
+            {
+                "addr1": "1 thing st",
+                "city": "stuffville",
+                "zipcode": 54321,
+                "tags": ['some', 'tags']
+            }
+        }
+
+        lperson = GDSDocument.ConstructFromDict(lperson)
+        lperson.put()    
+
+This will create a new person. If a GDSDocument with key "897654" already existed then this will overwrite it. If you'd
+like to instead merge over the top of an existing GDSDocument, you can use aReplace = False, eg:
+
+        lperson = GDSDocument.ConstructFromDict(lperson, aReplace = False)
+
 ## Simple Get
 
 All GDSDocument objects have a top level key. Normal ndb.get is used to get objects by their key.
@@ -52,6 +74,8 @@ All GDSDocument objects have a top level key. Normal ndb.get is used to get obje
 Normal ndb querying can be used on the GDSDocument entities. It is recommended that different types of data (eg Person, Address) 
 are denoted using a top level attribute "type". This is only a recommended convention however, and is in no way
 required.
+
+You can query on properties in the GDSDocument, ie: properties from the original JSON.
 
 Querying based on properties in nested dictionaries is fully supported. 
 
@@ -81,10 +105,14 @@ or
     s._name = 'address.zipcode'
     GDSDocument.query(s == 54321).fetch()
 
-Note that you cannot do the more standard
-    GDSDocument.query(GenericProperty('address.zipcode') == 54321).fetch()
+Note that if you are querying on properties below the top level, you cannot do the more standard
+    GDSDocument.query(GenericProperty('address.zipcode') == 54321).fetch()  # fails
 
 due to a [limitation of ndb] (http://stackoverflow.com/questions/13631884/ndb-querying-a-genericproperty-in-repeated-expando-structuredproperty)
+
+If you need to get the json back from a GDSDocument, just do this:
+
+    json = lgdsDocument.to_dict()
 
 ## Denormalized Object Linking
 
@@ -175,9 +203,13 @@ eg:
 
 Say we have the transform "address" as follows:
 
-    {
+    ltransform = {
         "fulladdr": "{{.addr1}}, {{.city}} {{.zipcode}}"
     }
+    
+You can store this transform against the name "address" for gaedocstore to find as follows:
+
+    GDSDocument.StorebOTLTransform("address", ltransform)
     
 Then when Person above is stored, it'll have its address placed inline as follows:
 
@@ -193,6 +225,14 @@ Then when Person above is stored, it'll have its address placed inline as follow
     }
 
 An analogous process happens to embedded addresses whenever the Address object is updated.
+
+You can lookup the bOTL Transform with:
+
+    ltransform = GDSDocument.GetbOTLTransform("address")
+    
+and delete it with
+
+    GDSDocument.DeletebOTLTransform("address")
 
 Desired feature (not yet implemented): If the template itself is updated, then all objects affected by that template are also updated.
 
