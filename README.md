@@ -44,21 +44,22 @@ merges the entity with the existing stored entity, preferentially including info
 but anything inside a complex array is not.
 
 eg:
-        ldictPerson = {
-            "key": "897654",
-            "type": "Person",
-            "name": "Fred",
-            "address": 
-            {
-                "addr1": "1 thing st",
-                "city": "stuffville",
-                "zipcode": 54321,
-                "tags": ['some', 'tags']
-            }
-        }
 
-        lperson = GDSDocument.ConstructFromDict(lperson)
-        lperson.put()    
+    ldictPerson = {
+        "key": "897654",
+        "type": "Person",
+        "name": "Fred",
+        "address": 
+        {
+            "addr1": "1 thing st",
+            "city": "stuffville",
+            "zipcode": 54321,
+            "tags": ['some', 'tags']
+        }
+    }
+    
+    lperson = GDSDocument.ConstructFromDict(ldictPerson)
+    lperson.put()    
 
 This will create a new person. If a GDSDocument with key "897654" already existed then this will overwrite it. If you'd
 like to instead merge over the top of an existing GDSDocument, you can use aReplace = False, eg:
@@ -236,7 +237,7 @@ and delete it with
 
 Desired feature (not yet implemented): If the template itself is updated, then all objects affected by that template are also updated.
 
-### deletion
+### Deletion
 
 If an object is deleted, then all denormalized links will be updated with a special key "link_missing": True. For example, say 
 we delete address "1234567" . Then Person will become:
