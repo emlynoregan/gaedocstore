@@ -1,7 +1,10 @@
 from google.appengine.ext.ndb import Expando, JsonProperty, Key, GenericProperty
 from google.appengine.ext.ndb.model import put_multi
+import bOTL
+from google.appengine.ext.ndb.blobstore import delete_multi
 
 LINKS_KEY = "denormalizedobjectlinks__"
+BOTLTRANSFORM_TYPE = "bOTLTransform"
 
 class GDSDocument (Expando):
     def Update(self):
@@ -60,6 +63,45 @@ class GDSDocument (Expando):
         if self.key:
             retval["key"] = self.key.id()
         return retval
+    
+    @classmethod
+    def StorebOTLTransform(cls, aTransformName, aTransform):
+        if not (aTransform and IsDict(aTransform)):
+            raise Exception("Transform must be a dictionary")
+        
+        ltransformDict = {"type": BOTLTRANSFORM_TYPE, "name": aTransformName, "transform": aTransform}
+        
+        ltransformDocument = GDSDocument.query().filter(GenericProperty("type") == BOTLTRANSFORM_TYPE).filter(GenericProperty("name") == aTransformName).get()
+        
+        if ltransformDocument:
+            ltransformDict["key"] = ltransformDocument.key().id
+            
+        ltransformDocument = cls.ConstructFromDict(ltransformDict)
+        if ltransformDocument:
+            ltransformDocument.put()
+        
+    @classmethod
+    def GetbOTLTransform(cls, aTransformName):
+        retval = None
+
+        ltransformDocument = GDSDocument.query().filter(GenericProperty("type") == BOTLTRANSFORM_TYPE).filter(GenericProperty("name") == aTransformName).get()
+        
+        if ltransformDocument and "transform" in ltransformDocument._properties:
+            retval = ltransformDocument.transform.to_dict()
+        
+        return retval
+
+    @classmethod
+    def DeletebOTLTransform(cls, aTransformName):
+        ldocuments, lcursor, lmore = GDSDocument.query().filter(GenericProperty("type") == BOTLTRANSFORM_TYPE).filter(GenericProperty("name") == aTransformName).fetch_page(10)
+        
+        while ldocuments:
+            delete_multi(ldocuments)
+            #
+            if lmore:
+                ldocuments, lcursor, lmore = GDSDocument.query().filter(GenericProperty("type") == BOTLTRANSFORM_TYPE).filter(GenericProperty("name") == aTransformName).fetch_page(10, start_cursor=lcursor)
+            else:
+                ldocuments = []
 
 class GDSJson (Expando):
     json = JsonProperty()
@@ -146,6 +188,12 @@ def UpdateDenormalizedObjectLinking(aDict):
                     if llinkobj:
                         # we have a linked object. Populate aTarget with values from the linked object.
                         llinkdict = llinkobj.to_dict()
+
+                        # do transform if ther is one
+                        ltransform = GDSDocument.GetbOTLTransform(lkey)
+                        if ltransform:
+                            llinkdict = bOTL.Transform(llinkdict, ltransform)
+                        
                         if "key" in llinkdict:
                             del llinkdict["key"]
                         aTarget.update(llinkdict)

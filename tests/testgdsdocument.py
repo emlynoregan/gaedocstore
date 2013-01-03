@@ -335,4 +335,51 @@ class testGDSDocument(BaseTestCase):
         self.assertIsNotNone(lpersonDict2)
         self.assertDictEqual(lpersonDict2, ldictPersonWithoutAddress, "person without address incorrect, second time")
 
+    def test8(self):
+        ldictPerson = {
+            "key": "897654",
+            "type": "Person",
+            "name": "Fred",
+            "address": {"key": "1234567"}
+        }
+        
+        ldictAddress = {
+            "key": "1234567", 
+            "type": "Address", 
+            "addr1": "1 thing st", 
+            "city": "stuffville", 
+            "zipcode": 54321,
+            "tags": ['some', 'tags']
+        }
+
+        laddressTransform = {
+            "fulladdress": "{{.addr1}}, {{.city}} {{.zipcode}}"
+        }
+        
+        ldictPersonWithTransformedAddress = {
+            "key": "897654",
+            "type": "Person",
+            "name": "Fred",
+            "address": 
+            {
+                "key": "1234567",
+                "fulladdress": "1 thing st, stuffville 54321"
+            }
+        }
+        
+        GDSDocument.StorebOTLTransform("address", laddressTransform)
+        
+        # first store the address
+        laddress = gaedocstore.GDSDocument.ConstructFromDict(ldictAddress)
+        self.assertIsNotNone(laddress)
+        laddress.put()
+        
+        # next store the person
+        lperson = gaedocstore.GDSDocument.ConstructFromDict(ldictPerson)
+        self.assertIsNotNone(lperson)
+        
+        # lperson should now be populated to match ldictPersonWithAddress
+        lpersonDict2 = lperson.to_dict()
+        self.assertIsNotNone(lpersonDict2)
+        self.assertDictEqual(lpersonDict2, ldictPersonWithTransformedAddress, "person has not been correctly updated with transformed address")
         
