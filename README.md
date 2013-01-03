@@ -52,6 +52,37 @@ required.
 
 Querying based on properties in nested dictionaries is fully supported. 
 
+eg: Say I store the following JSON:
+
+    {
+        "key": "897654",
+        "type": "Person",
+        "name": "Fred",
+        "address": 
+        {
+            "key": "1234567",
+            "type": "Address",
+            "addr1": "1 thing st",
+            "city": "stuffville",
+            "zipcode": 54321
+        }
+    }
+
+A query that would return potentially multiple objects including this one is:
+
+    GDSDocument.gql("WHERE address.zipcode = 54321").fetch()
+
+or 
+
+    s = GenericProperty()
+    s._name = 'address.zipcode'
+    GDSDocument.query(s == 54321).fetch()
+
+Note that you cannot do the more standard
+    GDSDocument.query(GenericProperty('address.zipcode') == 54321).fetch()
+
+due to a [limitation of ndb] (http://stackoverflow.com/questions/13631884/ndb-querying-a-genericproperty-in-repeated-expando-structuredproperty)
+
 ## Denormalized Object Linking
 
 You can directly support denormalized object linking.
