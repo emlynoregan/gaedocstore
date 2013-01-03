@@ -29,22 +29,16 @@ merges the entity with the existing stored entity, preferentially including info
     - If the key doesn't already exist, then a new GDSDocument is created for that key.
 
 
-- The top level object is mapped to the GDSDocument.
-    - Simple values become simple properties
-    
-    - Arrays become repeated properties
-    
-    - Dictionaries become a StructuredProperty
-
+- The top level dict is mapped to the GDSDocument (which is an expando).
 
 - The GDSDocument property structure is built recursively to match the JSON object structure.
+    - Simple values become simple property values
+    
+    - Arrays become JSON in a GDSJson object, which just hold "json", a JsonProperty (nothing inside is indexed, or searchable)
+    
+    - Dictionaries become another GDSDocument
 
-- There is an ndb constraint that if one StructuredProperty is inside another StructuredProperty, 
-then only one of them may be repeated. To work with this contraint, any repeated StructuredProperty that would appear
-under another StructuredProperty is made into a LocalStructuredProperty instead. Further, any StructuredProperty that
-would appear under a LocalStructuredProperty also becomes a LocalStructuredProperty. The penalty for using LocalStructuredProperty
-is that the contents are unindexable.
-
+    - So nested dictionary fields are fully indexed and searchable, but anything inside an array is not.
 
 ## Simple Get
 
@@ -55,6 +49,8 @@ All GDSDocument objects have a top level key. Normal ndb.get is used to get obje
 Normal ndb querying can be used on the GDSDocument entities. It is recommended that different types of data (eg Person, Address) 
 are denoted using a top level attribute "type". This is only a recommended convention however, and is in no way
 required.
+
+Querying based on properties in nested dictionaries is fully supported. 
 
 ## Denormalized Object Linking
 
