@@ -12,6 +12,15 @@ rather than pre-defined schema based entities, then gaedocstore can help.
 
 gaedocstore takes arbitrary JSON object structures, and stores them to a single ndb datastore object called GDSDocument.
 
+In ndb, JSON can simply be stored in a JSON property. Unfortunately that is a blob, and so unindexed. 
+This library stores the bulk of the document in first class expando properties, which are indexed, and only 
+resorts to JSON blobs where it can't be helped (and where you are unlikely to want to search anyway).
+
+gaedocstore also provides a method for denormalised linking of objects; that is, inserting one document 
+into another based on a reference key, and keeping the inserted, denormalised copy up to date as the source 
+document changes. Amongst other uses, this allows you to provide performant REST apis in which objects are 
+decorated with related information, without the penalty of secondary lookups.
+
 ## Simple Put
 
 When JSON is stored to the document store, it is converted to a GDSDocument object (an Expando model subclass) as follows:
