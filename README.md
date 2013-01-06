@@ -1,6 +1,8 @@
 gaedocstore
 ===========
 
+_See MIT license at the bottom of this document. It applies to all code in this repo._
+
 gaedocstore is a lightweight document database implementation that sits on top of  ndb in google appengine.
 
 ## Introduction
@@ -263,3 +265,12 @@ The current version does not support this, but in a future version we may suppor
 and have it flow back to the original object. eg: you could change addr1 in address inside person, and it would 
 fix the source address. Note this wont work when transforms are being used (you would need inverse transforms).
 
+# License
+
+Copyright (c) 2013 Emlyn O'Regan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
