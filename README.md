@@ -118,6 +118,7 @@ or
     GDSDocument.query(s == 54321).fetch()
 
 Note that if you are querying on properties below the top level, you cannot do the more standard
+
     GDSDocument.query(GenericProperty('address.zipcode') == 54321).fetch()  # fails
 
 due to a [limitation of ndb] (http://stackoverflow.com/questions/13631884/ndb-querying-a-genericproperty-in-repeated-expando-structuredproperty)
