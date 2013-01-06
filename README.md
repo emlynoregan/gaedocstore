@@ -132,6 +132,7 @@ If you need to get the json back from a GDSDocument, just do this:
 You can directly support denormalized object linking.
 
 Say you have two entities, an Address:
+
     {
         "key": "1234567",
         "type": "Address",
@@ -141,6 +142,7 @@ Say you have two entities, an Address:
     }
 
 and a Person:
+
     {
         "key": "897654",
         "type": "Person",
@@ -202,6 +204,7 @@ then the person will automatically update to
 
 Denormalized Object Linking also supports [pybOTL transform templates] (https://github.com/emlynoregan/pybOTL). gaedocstore
 can take a list of "name", "transform" pairs. When a key appears like 
+
     {
         ...
         "something": { key: XXX },
@@ -274,6 +277,13 @@ Similarly, if an object is saved with a link, but the linked object can't be fou
 The current version does not support this, but in a future version we may support the ability to change the denormalized information,
 and have it flow back to the original object. eg: you could change addr1 in address inside person, and it would 
 fix the source address. Note this wont work when transforms are being used (you would need inverse transforms).
+
+### storing deltas
+
+I've had a feature request from a friend, to have a mode that stores a version history of all changes to objects. 
+I think
+it's a great idea. I'd like a strongly parsimonious feel for the library as a whole: it should just feel like 
+"ndb with benefits").
 
 # License
 
