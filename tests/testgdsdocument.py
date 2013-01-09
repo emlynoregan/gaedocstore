@@ -383,3 +383,72 @@ class testGDSDocument(BaseTestCase):
         self.assertIsNotNone(lpersonDict2)
         self.assertDictEqual(lpersonDict2, ldictPersonWithTransformedAddress, "person has not been correctly updated with transformed address")
         
+    # test that a person can be updated with two addresses in an array
+    def test9(self):
+        ldictPerson = {
+            "key": "897654",
+            "type": "Person",
+            "name": "Fred",
+            "address": [{"key": "1234567"}, {"key": "2345678"}]
+        }
+        
+        ldictAddress1 = {
+            "key": "1234567", 
+            "type": "Address", 
+            "addr1": "1 thing st", 
+            "city": "stuffville", 
+            "zipcode": 54321,
+            "tags": ['some', 'tags']
+        }
+        
+        ldictAddress2 = {
+            "key": "2345678", 
+            "type": "Address", 
+            "addr1": "99 NinetyNine St", 
+            "city": "Hundred City", 
+            "zipcode": 99999
+        }
+
+        ldictPersonWithAddresses = {
+            "key": "897654",
+            "type": "Person",
+            "name": "Fred",
+            "address": 
+            [
+                {
+                    "key": "1234567", 
+                    "type": "Address", 
+                    "addr1": "1 thing st", 
+                    "city": "stuffville", 
+                    "zipcode": 54321,
+                    "tags": ['some', 'tags']
+                },
+                {
+                    "key": "2345678", 
+                    "type": "Address", 
+                    "addr1": "99 NinetyNine St", 
+                    "city": "Hundred City", 
+                    "zipcode": 99999
+                }
+            ]
+        }
+        
+        # first store the addresses
+        laddress1 = gaedocstore.GDSDocument.ConstructFromDict(ldictAddress1)
+        self.assertIsNotNone(laddress1)
+        laddress1.put()
+        laddress2 = gaedocstore.GDSDocument.ConstructFromDict(ldictAddress2)
+        self.assertIsNotNone(laddress2)
+        laddress2.put()
+        
+        # next store the person
+        lperson = gaedocstore.GDSDocument.ConstructFromDict(ldictPerson)
+        self.assertIsNotNone(lperson)
+        lperson.put()
+        
+        lperson = lperson.key.get() # reload person
+                
+        # lperson should now be populated to match ldictPersonWithAddresses
+        lpersonDict2 = lperson.to_dict()
+        self.assertIsNotNone(lpersonDict2)
+        self.assertDictEqual(lpersonDict2, ldictPersonWithAddresses, "person has not been correctly updated with multiple addresses")

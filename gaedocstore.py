@@ -171,12 +171,12 @@ def UpdateDenormalizedObjectLinking(aDict):
             retval = {}
             for lkey, lvalue in aSource.iteritems():
                 # anywhere where the lvalue is a dict containing a key "key", we need to do denormalized object linking
-                if IsDict(lvalue) and "key" in lvalue:
+
+                def ExpandLinkedDict(aSourceDict):                
                     aTarget = {}
-                    aTarget["key"] = lvalue["key"]
-                    #aTarget.update(lvalue)
+                    aTarget["key"] = aSourceDict["key"]
                     
-                    llinkkeyid = lvalue["key"]
+                    llinkkeyid = aSourceDict["key"]
                     
                     aLinksList.append(llinkkeyid)
                     
@@ -199,8 +199,19 @@ def UpdateDenormalizedObjectLinking(aDict):
                         aTarget.update(llinkdict)
                     else:
                         aTarget["link_missing"] = True
-                        
-                    retval[lkey] = aTarget
+
+                    return aTarget
+
+                if IsDict(lvalue) and "key" in lvalue:
+                    retval[lkey] = ExpandLinkedDict(lvalue)
+                elif IsList(lvalue):
+                    lresultList = []
+                    for litem in lvalue:
+                        if IsDict(litem) and "key" in litem:
+                            lresultList.append(ExpandLinkedDict(litem))
+                        else:
+                            lresultList.append(_updateDenormalizedObjectLinking(litem, aLinksList))
+                    retval[lkey] = lresultList
                 else:
                     retval[lkey] = _updateDenormalizedObjectLinking(lvalue, aLinksList)
         elif IsList(aSource):
