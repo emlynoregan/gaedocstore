@@ -1,6 +1,8 @@
 gaedocstore
 ===========
 
+_See MIT license at the bottom of this document. It applies to all code in this repo._
+
 gaedocstore is a lightweight document database implementation that sits on top of  ndb in google appengine.
 
 ## Introduction
@@ -9,6 +11,15 @@ If you are using appengine for your platform, but you need to store arbitrary (d
 rather than pre-defined schema based entities, then gaedocstore can help.
 
 gaedocstore takes arbitrary JSON object structures, and stores them to a single ndb datastore object called GDSDocument.
+
+In ndb, JSON can simply be stored in a JSON property. Unfortunately that is a blob, and so unindexed. 
+This library stores the bulk of the document in first class expando properties, which are indexed, and only 
+resorts to JSON blobs where it can't be helped (and where you are unlikely to want to search anyway).
+
+gaedocstore also provides a method for denormalised linking of objects; that is, inserting one document 
+into another based on a reference key, and keeping the inserted, denormalised copy up to date as the source 
+document changes. Amongst other uses, this allows you to provide performant REST apis in which objects are 
+decorated with related information, without the penalty of secondary lookups.
 
 ## Simple Put
 
@@ -43,6 +54,29 @@ merges the entity with the existing stored entity, preferentially including info
     - So nested dictionary fields are fully indexed and searchable, including where their values are lists of simple types,
 but anything inside a complex array is not.
 
+eg:
+
+    ldictPerson = {
+        "key": "897654",
+        "type": "Person",
+        "name": "Fred",
+        "address": 
+        {
+            "addr1": "1 thing st",
+            "city": "stuffville",
+            "zipcode": 54321,
+            "tags": ['some', 'tags']
+        }
+    }
+    
+    lperson = GDSDocument.ConstructFromDict(ldictPerson)
+    lperson.put()    
+
+This will create a new person. If a GDSDocument with key "897654" already existed then this will overwrite it. If you'd
+like to instead merge over the top of an existing GDSDocument, you can use aReplace = False, eg:
+
+        lperson = GDSDocument.ConstructFromDict(lperson, aReplace = False)
+
 ## Simple Get
 
 All GDSDocument objects have a top level key. Normal ndb.get is used to get objects by their key.
@@ -52,6 +86,8 @@ All GDSDocument objects have a top level key. Normal ndb.get is used to get obje
 Normal ndb querying can be used on the GDSDocument entities. It is recommended that different types of data (eg Person, Address) 
 are denoted using a top level attribute "type". This is only a recommended convention however, and is in no way
 required.
+
+You can query on properties in the GDSDocument, ie: properties from the original JSON.
 
 Querying based on properties in nested dictionaries is fully supported. 
 
@@ -81,16 +117,22 @@ or
     s._name = 'address.zipcode'
     GDSDocument.query(s == 54321).fetch()
 
-Note that you cannot do the more standard
-    GDSDocument.query(GenericProperty('address.zipcode') == 54321).fetch()
+Note that if you are querying on properties below the top level, you cannot do the more standard
+
+    GDSDocument.query(GenericProperty('address.zipcode') == 54321).fetch()  # fails
 
 due to a [limitation of ndb] (http://stackoverflow.com/questions/13631884/ndb-querying-a-genericproperty-in-repeated-expando-structuredproperty)
+
+If you need to get the json back from a GDSDocument, just do this:
+
+    json = lgdsDocument.to_dict()
 
 ## Denormalized Object Linking
 
 You can directly support denormalized object linking.
 
 Say you have two entities, an Address:
+
     {
         "key": "1234567",
         "type": "Address",
@@ -100,6 +142,7 @@ Say you have two entities, an Address:
     }
 
 and a Person:
+
     {
         "key": "897654",
         "type": "Person",
@@ -161,6 +204,7 @@ then the person will automatically update to
 
 Denormalized Object Linking also supports [pybOTL transform templates] (https://github.com/emlynoregan/pybOTL). gaedocstore
 can take a list of "name", "transform" pairs. When a key appears like 
+
     {
         ...
         "something": { key: XXX },
@@ -175,9 +219,13 @@ eg:
 
 Say we have the transform "address" as follows:
 
-    {
+    ltransform = {
         "fulladdr": "{{.addr1}}, {{.city}} {{.zipcode}}"
     }
+    
+You can store this transform against the name "address" for gaedocstore to find as follows:
+
+    GDSDocument.StorebOTLTransform("address", ltransform)
     
 Then when Person above is stored, it'll have its address placed inline as follows:
 
@@ -194,9 +242,17 @@ Then when Person above is stored, it'll have its address placed inline as follow
 
 An analogous process happens to embedded addresses whenever the Address object is updated.
 
+You can lookup the bOTL Transform with:
+
+    ltransform = GDSDocument.GetbOTLTransform("address")
+    
+and delete it with
+
+    GDSDocument.DeletebOTLTransform("address")
+
 Desired feature (not yet implemented): If the template itself is updated, then all objects affected by that template are also updated.
 
-### deletion
+### Deletion
 
 If an object is deleted, then all denormalized links will be updated with a special key "link_missing": True. For example, say 
 we delete address "1234567" . Then Person will become:
@@ -222,3 +278,21 @@ The current version does not support this, but in a future version we may suppor
 and have it flow back to the original object. eg: you could change addr1 in address inside person, and it would 
 fix the source address. Note this wont work when transforms are being used (you would need inverse transforms).
 
+### storing deltas
+
+I've had a feature request from a friend, to have a mode that stores a version history of all changes to objects. 
+I think
+it's a great idea. I'd like a strongly parsimonious feel for the library as a whole: it should just feel like 
+"ndb with benefits").
+
+# License
+
+Copyright (c) 2013 Emlyn O'Regan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+http://opensource.org/licenses/MIT
