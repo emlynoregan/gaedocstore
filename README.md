@@ -202,6 +202,60 @@ then the person will automatically update to
         }
     }
 
+You can also link to multiple objects in a list. Given this person with two addresses linked in a list:
+
+        {
+            "key": "897654",
+            "type": "Person",
+            "name": "Fred",
+            "address": [{"key": "1234567"}, {"key": "2345678"}]
+        }
+
+And these addresses:
+
+        {
+            "key": "1234567", 
+            "type": "Address", 
+            "addr1": "1 thing st", 
+            "city": "stuffville", 
+            "zipcode": 54321,
+            "tags": ['some', 'tags']
+        }
+        
+        {
+            "key": "2345678", 
+            "type": "Address", 
+            "addr1": "99 NinetyNine St", 
+            "city": "Hundred City", 
+            "zipcode": 99999
+        }
+
+the expanded person will look like this:
+
+        {
+            "key": "897654",
+            "type": "Person",
+            "name": "Fred",
+            "address": 
+            [
+                {
+                    "key": "1234567", 
+                    "type": "Address", 
+                    "addr1": "1 thing st", 
+                    "city": "stuffville", 
+                    "zipcode": 54321,
+                    "tags": ['some', 'tags']
+                },
+                {
+                    "key": "2345678", 
+                    "type": "Address", 
+                    "addr1": "99 NinetyNine St", 
+                    "city": "Hundred City", 
+                    "zipcode": 99999
+                }
+            ]
+        }
+
 Denormalized Object Linking also supports [pybOTL transform templates] (https://github.com/emlynoregan/pybOTL). gaedocstore
 can take a list of "name", "transform" pairs. When a key appears like 
 
