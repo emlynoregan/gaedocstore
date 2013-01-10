@@ -1,7 +1,8 @@
-from google.appengine.ext.ndb import Expando, JsonProperty, Key, GenericProperty
+from google.appengine.ext.ndb import Expando, JsonProperty, TextProperty, Key, GenericProperty
 from google.appengine.ext.ndb.model import put_multi
 import bOTL
 from google.appengine.ext.ndb.blobstore import delete_multi
+import sys
 
 LINKS_KEY = "denormalizedobjectlinks__"
 BOTLTRANSFORM_TYPE = "bOTLTransform"
@@ -111,6 +112,14 @@ class GDSJson (Expando):
         retval = retval["json"]
         return retval
 
+class GDSTextBlobWrapper (Expando):
+    text = TextProperty()
+    
+    def _to_dict(self, *args, **kwargs):
+        retval = super(GDSTextBlobWrapper, self)._to_dict(*args, **kwargs)
+        retval = retval["text"]
+        return retval
+
 def FixAllLinkingGDSDocuments(aGDSDocumentKey):
     if aGDSDocumentKey:
         lkeyid = aGDSDocumentKey.id()
@@ -146,16 +155,22 @@ def DictToGDSDocument(aDict, aBaseGDSDocument = None):
                     lchildBaseDocument = None
                     if aBaseGDSDocument and IsDict(aBaseGDSDocument) and lkey in aBaseGDSDocument:
                         lchildBaseDocument = aBaseGDSDocument[lkey]
-                    lconvertedValue = _objectToGDSDocument(lvalue, lchildBaseDocument)                    
+                    lconvertedValue = _objectToGDSDocument(lvalue, lchildBaseDocument)
+
                     retval.populate(**{lkey: lconvertedValue})
+                            
         elif IsList(aSource):
             if IsListOfSimpleValues(aSource):
                 retval = aSource
             else:
-                retval = GDSJson()
-                retval.json = aSource
+                retval = GDSJson(json = aSource)
         else:
-            retval = aSource
+            lneedTextBlob = isinstance(aSource, (str, unicode)) and sys.getsizeof(aSource) >= 500 
+            
+            if lneedTextBlob:
+                retval = GDSTextBlobWrapper(text = aSource)
+            else:
+                retval = aSource
         return retval
     
     if IsDict(aDict):

@@ -452,3 +452,18 @@ class testGDSDocument(BaseTestCase):
         lpersonDict2 = lperson.to_dict()
         self.assertIsNotNone(lpersonDict2)
         self.assertDictEqual(lpersonDict2, ldictPersonWithAddresses, "person has not been correctly updated with multiple addresses")
+
+    # test that a long string is stored properly (there is a 500 byte limit on indexed properties)
+    def test10(self):
+        ldict = {
+            "key": "thing",
+            "longthing": "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+        }
+        
+        lobj = gaedocstore.GDSDocument.ConstructFromDict(ldict)
+        lobj.put()
+        
+        # now try reloading it and check it matches the input
+        ldict2 = lobj.key.get().to_dict()
+        self.assertIsNotNone(ldict2)
+        self.assertDictEqual(ldict2, ldict)
